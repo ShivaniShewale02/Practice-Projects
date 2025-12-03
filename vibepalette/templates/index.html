@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VibePalette – Image Color Palette Extractor</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="page">
+    <!-- Background decorations -->
+    <div class="bg-orbit bg-orbit-1"></div>
+    <div class="bg-orbit bg-orbit-2"></div>
+
+    <header class="header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-mark">
+            <span class="brand-dot"></span>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">VibePalette</span>
+            <span class="brand-sub">Color intelligence for visuals</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <span class="chip chip-soft">Made with Flask</span>
+        <span class="chip chip-soft">KMeans · ML</span>
+      </div>
+    </header>
+
+    <main class="shell">
+      <!-- Hero row -->
+      <section class="hero">
+        <div class="hero-copy">
+          <h1>Turn any image into a curated color story.</h1>
+          <p class="hero-subtitle">
+            Upload a photo and let the model extract a clean, minimal palette.
+            Perfect for UI themes, branding, and quick inspiration.
+          </p>
+
+          <div class="hero-metrics">
+            <div class="metric">
+              <span class="metric-label">Palette size</span>
+              <span class="metric-value">{{ palette_size or 5 }} colors</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Model</span>
+              <span class="metric-value">KMeans · RGB</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">Style</span>
+              <span class="metric-value">Minimal · Clean</span>
+            </div>
+          </div>
+        </div>
+
+        <section class="card upload-card">
+          <h2>Upload an image</h2>
+          <p class="subtitle">We’ll analyze the pixels and extract dominant colors.</p>
+
+          <form method="POST" enctype="multipart/form-data" class="upload-form">
+            <label for="image" class="field-label">Image file</label>
+
+            <label for="image" class="dropzone" id="dropzone">
+              <div class="dropzone-inner">
+                <div class="drop-icon">⬆</div>
+                <div class="drop-text-main">Drag & drop or click to browse</div>
+                <div class="drop-text-sub">JPG, PNG • Large images are resized automatically</div>
+              </div>
+              <input type="file" id="image" name="image" accept="image/*" required>
+            </label>
+
+            <!-- Palette size control -->
+            <div class="control-row">
+              <div class="control">
+                <label class="field-label">Palette size</label>
+                <select name="palette_size" class="select">
+                  <option value="3" {% if palette_size == 3 %}selected{% endif %}>3 colors</option>
+                  <option value="4" {% if palette_size == 4 %}selected{% endif %}>4 colors</option>
+                  <option value="5" {% if palette_size == 5 or palette_size is not defined %}selected{% endif %}>5 colors</option>
+                  <option value="6" {% if palette_size == 6 %}selected{% endif %}>6 colors</option>
+                  <option value="7" {% if palette_size == 7 %}selected{% endif %}>7 colors</option>
+                  <option value="8" {% if palette_size == 8 %}selected{% endif %}>8 colors</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="primary-btn">Generate palette</button>
+          </form>
+        </section>
+      </section>
+
+      <!-- Results row -->
+      <section class="layout">
+        {% if img_data %}
+          <div class="card image-card">
+            <div class="card-header">
+              <h3>Image preview</h3>
+              <span class="card-tag">Source</span>
+            </div>
+            <div class="image-frame">
+              <img src="data:image/png;base64,{{ img_data }}" alt="Uploaded image preview">
+            </div>
+          </div>
+        {% endif %}
+
+        {% if colors %}
+          <div class="card palette-card">
+            <div class="card-header">
+              <h3>Extracted palette</h3>
+              <span class="card-tag">Dominant colors</span>
+            </div>
+            <p class="subtitle small">Click a hex code to copy it to your clipboard.</p>
+            <div class="palette">
+              {% for c in colors %}
+                <div class="swatch">
+                  <div class="color-box" style="background: {{ c }};"></div>
+                  <button
+                    type="button"
+                    class="hex-button"
+                    data-hex="{{ c }}"
+                  >
+                    <span class="hex-text">{{ c }}</span>
+                    <span class="copied-label">Copied</span>
+                  </button>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if palette_stats %}
+          <div class="card palette-summary span-2">
+            <div class="card-header">
+              <h3>Vibe analysis</h3>
+              <span class="card-tag">Palette profile</span>
+            </div>
+            <p class="subtitle small">
+              <strong>{{ palette_stats.mood }}</strong> – {{ palette_stats.tagline }}
+            </p>
+
+            <div class="stat-grid">
+              <div class="stat-item">
+                <span class="stat-label">Average lightness</span>
+                <div class="stat-bar">
+                  <div class="stat-bar-fill" style="width: {{ palette_stats.avg_lightness }}%;"></div>
+                </div>
+                <span class="stat-value">{{ palette_stats.avg_lightness }}%</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-label">Average saturation</span>
+                <div class="stat-bar">
+                  <div class="stat-bar-fill" style="width: {{ palette_stats.avg_saturation }}%;"></div>
+                </div>
+                <span class="stat-value">{{ palette_stats.avg_saturation }}%</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-label">Warm tones</span>
+                <div class="stat-bar">
+                  <div class="stat-bar-fill" style="width: {{ palette_stats.warm_ratio }}%;"></div>
+                </div>
+                <span class="stat-value">{{ palette_stats.warm_ratio }}%</span>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
+        {% if not img_data and not colors %}
+          <div class="card empty-state">
+            <h3>No palette yet</h3>
+            <p class="subtitle small">
+              Upload an image on the right to see its color story appear here.
+            </p>
+          </div>
+        {% endif %}
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Built with <span class="heart">♥</span> using Flask, scikit-learn & Pillow.</span>
+    </footer>
+  </div>
+
+  <script>
+    // Click-to-copy hex codes
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".hex-button");
+      if (!btn) return;
+
+      const hex = btn.getAttribute("data-hex");
+      if (!hex) return;
+
+      navigator.clipboard.writeText(hex).then(() => {
+        const label = btn.querySelector(".copied-label");
+        label.classList.add("visible");
+        setTimeout(() => label.classList.remove("visible"), 900);
+      }).catch(() => {
+        // optional: could show a fallback alert
+      });
+    });
+
+    // Drag & drop highlight for dropzone
+    const dropzone = document.getElementById("dropzone");
+    if (dropzone) {
+      const preventDefaults = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, preventDefaults, false);
+      });
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, () => {
+          dropzone.classList.add("dropzone-active");
+        }, false);
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, () => {
+          dropzone.classList.remove("dropzone-active");
+        }, false);
+      });
+    }
+  </script>
+</body>
+</html>
